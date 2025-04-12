@@ -11,7 +11,7 @@ st.set_page_config(page_title="Simulador de Carrera Profesional", layout="wide")
 # Encabezado
 col1, col2, col3 = st.columns([1, 6, 1])
 with col1:
-    st.image("logo_izquierda.png", width=120)
+    st.image("logo_izquierda.png", width=130)
 with col2:
     st.title("Simulador de Carrera Profesional Horizontal")
 with col3:
@@ -19,7 +19,7 @@ with col3:
 
 # Sidebar inputs
 st.sidebar.header("Configuración inicial")
-n_grados = st.sidebar.number_input("Nº de grados de carrera (GDP)", min_value=1, max_value=10, value=4)
+n_grados = st.sidebar.number_input("Nº de grados de carrera (GDP)", min_value=1, max_value=10, value=5)
 
 
 # Opciones de asignación por CD
