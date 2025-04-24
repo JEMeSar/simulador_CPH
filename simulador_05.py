@@ -21,7 +21,6 @@ with col3:
 st.sidebar.header("Configuración inicial")
 n_grados = st.sidebar.number_input("Nº de grados de carrera (GDP)", min_value=1, max_value=10, value=5)
 
-
 # Opciones de asignación por CD
 modo_asignacion = st.sidebar.radio("Modo de asignación por CD", ["Manual", "Proporcional desde CD14 por grado"], index=1)
 cd_niveles = list(range(14, 31))
@@ -43,7 +42,6 @@ else:
         for i, cd in enumerate(cd_niveles):
             asignaciones_por_cd[grado][cd] = round(base * ((1 + incremento) ** i), 2)
 
-
 # PESTAÑAS PRINCIPALES
 tab1, tab2, tab3 = st.tabs(["Simulación de carrera", "Distribución de plantilla", "Resultados"])
 
@@ -56,6 +54,7 @@ with tab1:
         años_por_grado.append(años)
 
     st.subheader("Visualización de los tramos de carrera")
+    # Coordenadas para gráfico
     x_vals = [0]
     y_vals = ["Inicio"]
     cumulative = 0
@@ -64,20 +63,34 @@ with tab1:
         x_vals.append(cumulative)
         y_vals.append(f"Grado {i+1}")
 
+    # Dibujar línea de tiempo
     fig_timeline, ax_timeline = plt.subplots(figsize=(10, 2))
     colors = sns.color_palette("tab10", n_colors=len(x_vals) - 1)
     for i in range(1, len(x_vals)):
-        ax_timeline.hlines(y=1, xmin=x_vals[i-1], xmax=x_vals[i], color=colors[i-1], linewidth=6)
-        ax_timeline.text((x_vals[i-1]+x_vals[i])/2, 1.05, y_vals[i], ha='center', va='bottom', fontsize=9)
-        ax_timeline.text(x_vals[i-1], 0.98, f"{x_vals[i-1]}", ha='center', va='top', fontsize=8)
-        ax_timeline.text(x_vals[i], 0.98, f"{x_vals[i]}", ha='center', va='top', fontsize=8)
-
-    ax_timeline.set_xlim(0, x_vals[-1] + 1)
+        # último tramo: dibujar igual pero etiquetar distinto
+        start = x_vals[i-1]
+        end = x_vals[i]
+        ax_timeline.hlines(y=1, xmin=start, xmax=end, color=colors[i-1], linewidth=6)
+        # etiqueta central del tramo
+        ax_timeline.text((start+end)/2, 1.05, y_vals[i], ha='center', va='bottom', fontsize=9)
+        # ticks y etiquetas solo hasta penúltimo límite
+        if i < len(x_vals)-1:
+            ax_timeline.text(start, 0.98, f"{start}", ha='center', va='top', fontsize=8)
+        else:
+            # en el inicio del último tramo, mostrar con '+'
+            ax_timeline.text(start, 0.98, f"más de {start} ", ha='center', va='top', fontsize=8)
+    # eje x con tick en el inicio de cada tramo
+    tick_positions = x_vals[:-1]  # ignorar último tope
+    tick_labels = [str(pos) for pos in x_vals[:-2]] + [f"más de {x_vals[-2]}"]
+    ax_timeline.set_xticks(tick_positions)
+    ax_timeline.set_xticklabels(tick_labels)
+    ax_timeline.set_xlim(0, x_vals[-2] + años_por_grado[-1])
     ax_timeline.set_ylim(0.95, 1.15)
     ax_timeline.axis('off')
     ax_timeline.set_title("Años por grado")
     st.pyplot(fig_timeline)
 
+    # Guardar imagen para PDF
     img_path = "secuencia_temp.png"
     fig_timeline.savefig(img_path, bbox_inches="tight")
 
@@ -93,17 +106,19 @@ with tab1:
             fecha_hoy = pd.Timestamp.today()
             df_empleados['antigüedad_años'] = (fecha_hoy - df_empleados['fanti']).dt.days // 365
 
-            limites = [0]
-            acumulado = 0
+            # Cálculo de límites acumulados para cada grado
+            boundaries = []
+            acum = 0
             for años in años_por_grado:
-                acumulado += años
-                limites.append(acumulado)
+                acum += años
+                boundaries.append(acum)
 
+            # Función que asigna grado; el último grado es abierto hasta infinito
             def asignar_grado(antiguedad):
-                for i in range(len(limites)-1):
-                    if limites[i] <= antiguedad < limites[i+1]:
-                        return i + 1
-                return n_grados
+                for idx, límite in enumerate(boundaries):
+                    if antiguedad < límite:
+                        return idx + 1
+                return len(boundaries)
 
             df_empleados['Grado'] = df_empleados['antigüedad_años'].apply(asignar_grado)
             resumen = df_empleados.groupby(['Grado', 'CD']).size().reset_index(name='Personas')
